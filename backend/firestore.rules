@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Phase 1: TEST mode — open access for development
+    // Phase 3: locked down with proper rules (see PHASE_3_VERIFICATION_AND_SHIP.md)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

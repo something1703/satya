@@ -1,0 +1,57 @@
+# Environment and secrets — NEVER commit these
+.env.local
+firebase_credentials.txt
+*.jks
+key.properties
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.packages
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/pubspec.lock
+
+# Android
+mobile/android/.gradle/
+mobile/android/app/debug/
+mobile/android/app/profile/
+mobile/android/app/release/
+
+# iOS
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model files (too large for git)
+*.task
+*.litertlm
+*.bin
+*.tflite
+*.gguf
+
+# Node (for Firebase Functions and landing page)
+node_modules/
+backend/functions/lib/
+landing/.next/
+landing/out/
+
+# Python (for ML notebooks)
+ml/__pycache__/
+ml/.ipynb_checkpoints/
+ml/dataset/*.csv
+ml/dataset/*.json
+ml/data/*.csv
+*.pyc
+
+# Video assets (too large for git)
+video/final.mp4
+video/raw/

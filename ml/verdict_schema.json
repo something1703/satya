@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SATYA Verdict Schema v1",
+  "description": "Structured truth-detection verdict produced by the Gemma 4 model for the SATYA app.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "content_hash",
+    "overall_verdict",
+    "overall_confidence",
+    "category_scores",
+    "evidence",
+    "recommendation",
+    "explanation_short",
+    "explanation_detailed"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "v1"
+    },
+    "content_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the analyzed content"
+    },
+    "overall_verdict": {
+      "type": "string",
+      "enum": ["LIKELY_AUTHENTIC", "INCONCLUSIVE", "LIKELY_MANIPULATED", "LIKELY_SYNTHETIC"]
+    },
+    "overall_confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Calibrated confidence score (0.0 = no confidence, 1.0 = near-certain)"
+    },
+    "category_scores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "confidence"],
+        "properties": {
+          "category": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": ["type", "description", "location"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Evidence type (e.g., 'visual_artifact', 'audio_anomaly', 'factual_inconsistency')"
+          },
+          "description": {
+            "type": "string",
+            "description": "Plain-language description of the evidence"
+          },
+          "location": {
+            "type": "string",
+            "description": "Where in the content this evidence was found"
+          }
+        }
+      }
+    },
+    "recommendation": {
+      "type": "string",
+      "enum": ["SAFE_TO_FORWARD", "VERIFY_BEFORE_FORWARDING", "DO_NOT_FORWARD"]
+    },
+    "explanation_short": {
+      "type": "string",
+      "description": "Two-sentence plain-language summary of why this verdict was reached"
+    },
+    "explanation_detailed": {
+      "type": "string",
+      "description": "Longer paragraph for users who tap 'tell me more'"
+    }
+  }
+}
