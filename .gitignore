@@ -3,6 +3,7 @@
 firebase_credentials.txt
 *.jks
 key.properties
+mobile/lib/firebase_options.dart
 
 # Flutter / Dart
 mobile/.dart_tool/
