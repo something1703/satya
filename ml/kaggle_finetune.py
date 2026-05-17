@@ -8,11 +8,15 @@
 #   - Private dataset "SATYA Regional Fact-Check Data" added via Add Data
 # ============================================================================
 
+# %% — Memory fix (must be before any torch import)
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 # %% — Install
 !pip install -q "unsloth[kaggle]" datasets trl evaluate scikit-learn matplotlib
 
 # %% — Imports
-import json, os, csv, hashlib, random, warnings
+import json, csv, hashlib, random, warnings
 from datetime import datetime
 import numpy as np
 import pandas as pd
@@ -306,7 +310,7 @@ from unsloth import FastLanguageModel
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name="google/gemma-4-e4b-it",
-    max_seq_length=4096,
+    max_seq_length=2048,
     dtype=None,
     load_in_4bit=True,
 )
@@ -351,8 +355,8 @@ trainer = SFTTrainer(
     train_dataset=train_ds,
     eval_dataset=val_ds,
     args=SFTConfig(
-        per_device_train_batch_size=2,
-        gradient_accumulation_steps=8,
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=16,
         warmup_ratio=0.05,
         num_train_epochs=3,
         learning_rate=2e-4,
@@ -365,7 +369,7 @@ trainer = SFTTrainer(
         output_dir="satya-lora-checkpoints",
         report_to="none",
         dataset_text_field="text",
-        max_seq_length=4096,
+        max_seq_length=2048,
     ),
 )
 
@@ -459,13 +463,24 @@ print("📊 Evaluating fine-tuned model...")
 ft_preds, ft_truths = run_eval(model, tokenizer, test_data, "SATYA Fine-Tuned")
 ft_metrics = compute_metrics(ft_preds, ft_truths, "SATYA Fine-Tuned")
 
+# %% — Free GPU memory before loading base model
+import gc
+import torch
+
+print("\n🧹 Clearing GPU memory before base model comparison...")
+del model
+del trainer
+gc.collect()
+torch.cuda.empty_cache()
+print("   GPU memory cleared.")
+
 # %% — Evaluate base model for comparison
 print("\n📊 Evaluating base model for comparison...")
 print("   Reloading base Gemma 4 E4B without LoRA...")
 
 base_model, base_tokenizer = FastLanguageModel.from_pretrained(
     model_name="google/gemma-4-e4b-it",
-    max_seq_length=4096,
+    max_seq_length=2048,
     dtype=None,
     load_in_4bit=True,
 )
