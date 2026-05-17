@@ -463,13 +463,24 @@ print("📊 Evaluating fine-tuned model...")
 ft_preds, ft_truths = run_eval(model, tokenizer, test_data, "SATYA Fine-Tuned")
 ft_metrics = compute_metrics(ft_preds, ft_truths, "SATYA Fine-Tuned")
 
+# %% — Save and push adapter to HF (BEFORE clearing memory)
+print(f"\n☁️ Saving and pushing adapter to Hugging Face: {REPO_NAME}...")
+model.save_pretrained("satya-lora-adapter")
+tokenizer.save_pretrained("satya-lora-adapter")
+model.push_to_hub(REPO_NAME, token=HF_TOKEN)
+tokenizer.push_to_hub(REPO_NAME, token=HF_TOKEN)
+print(f"✅ Adapter pushed to https://huggingface.co/{REPO_NAME}")
+
 # %% — Free GPU memory before loading base model
 import gc
 import torch
 
 print("\n🧹 Clearing GPU memory before base model comparison...")
 del model
-del trainer
+try:
+    del trainer
+except NameError:
+    pass
 gc.collect()
 torch.cuda.empty_cache()
 print("   GPU memory cleared.")
@@ -511,7 +522,7 @@ eval_md = f"""# SATYA Fine-Tuning Evaluation Results
 
 **Date:** {datetime.now().isoformat()}
 **Base Model:** google/gemma-4-e4b-it
-**Method:** LoRA (rank 16, alpha 32, dropout 0.05) via Unsloth
+**Method:** LoRA (rank 16, alpha 32, dropout 0.0) via Unsloth
 **Regional examples:** {len(df_regional_balanced)}
 **LIAR examples:** {len(df_liar_balanced)}
 **Total training examples:** {len(train_data)}
@@ -532,12 +543,12 @@ eval_md = f"""# SATYA Fine-Tuning Evaluation Results
 |-----------|-------|
 | LoRA rank | 16 |
 | LoRA alpha | 32 |
-| LoRA dropout | 0.05 |
+| LoRA dropout | 0.0 |
 | Learning rate | 2e-4 |
 | Epochs | 3 |
-| Batch size | 2 |
-| Gradient accumulation | 8 |
-| Max seq length | 4096 |
+| Batch size | 1 |
+| Gradient accumulation | 16 |
+| Max seq length | 2048 |
 
 ## Data Sources
 
@@ -552,16 +563,12 @@ with open("/kaggle/working/eval_results.md", "w") as f:
 print("\n📄 Evaluation saved to /kaggle/working/eval_results.md")
 
 # ============================================================================
-# 8. PUSH TO HUGGING FACE
+# 8. UPDATE MODEL CARD WITH FINAL BENCHMARKS
 # ============================================================================
 
-# %% — Push
-print(f"\n☁️ Pushing to Hugging Face: {REPO_NAME}...")
+# %% — Update model card on HF with benchmarks from both evals
+print(f"\n📝 Updating model card on HF with benchmark comparison...")
 
-model.save_pretrained("satya-lora-adapter")
-tokenizer.save_pretrained("satya-lora-adapter")
-
-# Write model card
 model_card = f"""---
 license: apache-2.0
 base_model: google/gemma-4-e4b-it
@@ -592,10 +599,24 @@ google/gemma-4-e4b-it (4-bit quantized)
 
 ## Results
 
-| Metric | Base | Fine-Tuned | Improvement |
-|--------|------|-----------|-------------|
+| Metric | Base Gemma 4 E4B | SATYA Fine-Tuned | Improvement |
+|--------|-----------------|------------------|-------------|
 | Accuracy | {base_metrics['accuracy']:.4f} | {ft_metrics['accuracy']:.4f} | {acc_diff:+.4f} |
 | F1 (macro) | {base_metrics['f1_macro']:.4f} | {ft_metrics['f1_macro']:.4f} | {f1_diff:+.4f} |
+| Schema Compliance | {base_metrics['schema_compliance']:.1f}% | {ft_metrics['schema_compliance']:.1f}% | — |
+
+## Training Hyperparameters
+
+| Parameter | Value |
+|-----------|-------|
+| LoRA rank | 16 |
+| LoRA alpha | 32 |
+| LoRA dropout | 0.0 |
+| Learning rate | 2e-4 |
+| Epochs | 3 |
+| Batch size | 1 |
+| Gradient accumulation | 16 |
+| Max seq length | 2048 |
 
 ## Intended Use
 On-device truth detection in the SATYA mobile app. Classifies content into:
@@ -610,11 +631,18 @@ LIKELY_AUTHENTIC, INCONCLUSIVE, LIKELY_MANIPULATED, LIKELY_SYNTHETIC
 Apache 2.0
 """
 
-with open("satya-lora-adapter/README.md", "w") as f:
+# Upload only the README — adapter is already pushed
+from huggingface_hub import HfApi
+api = HfApi(token=HF_TOKEN)
+with open("README_final.md", "w") as f:
     f.write(model_card)
+api.upload_file(
+    path_or_fileobj="README_final.md",
+    path_in_repo="README.md",
+    repo_id=REPO_NAME,
+    token=HF_TOKEN,
+)
 
-model.push_to_hub(REPO_NAME, token=HF_TOKEN)
-tokenizer.push_to_hub(REPO_NAME, token=HF_TOKEN)
-
-print(f"\n✅ Done! Adapter live at: https://huggingface.co/{REPO_NAME}")
-print(f"   Download eval_results.md from /kaggle/working/ and copy to ml/eval/results.md")
+print(f"\n✅ DONE! Everything pushed.")
+print(f"   Adapter: https://huggingface.co/{REPO_NAME}")
+print(f"   Eval results: /kaggle/working/eval_results.md")
