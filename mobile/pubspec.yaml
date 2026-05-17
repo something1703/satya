@@ -29,6 +29,7 @@ dependencies:
   # Media handling (Phase 2 — multimodal pipeline)
   image_picker: ^1.1.2
   share_plus: ^10.0.2
+  image: ^4.5.3
 
   # UI utilities
   google_fonts: ^6.2.1

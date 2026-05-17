@@ -143,6 +143,42 @@ class GemmaService {
     return response ?? '';
   }
 
+  /// Send a text prompt with a single image and get the complete response.
+  Future<String> generateWithImage(String prompt, Uint8List imageBytes) async {
+    if (_model == null) {
+      throw StateError('GemmaService not initialized. Call initialize() first.');
+    }
+
+    final chat = await _model!.createChat(supportImage: true);
+
+    await chat.addQueryChunk(Message.withImage(
+      text: prompt,
+      imageBytes: imageBytes,
+      isUser: true,
+    ));
+
+    final response = await chat.generateChatResponse();
+    return response ?? '';
+  }
+
+  /// Send a text prompt with multiple images and get the complete response.
+  Future<String> generateWithImages(String prompt, List<Uint8List> images) async {
+    if (_model == null) {
+      throw StateError('GemmaService not initialized. Call initialize() first.');
+    }
+
+    final chat = await _model!.createChat(supportImage: true);
+
+    await chat.addQueryChunk(Message.withImages(
+      text: prompt,
+      imageBytes: images,
+      isUser: true,
+    ));
+
+    final response = await chat.generateChatResponse();
+    return response ?? '';
+  }
+
   // ─── Cleanup ─────────────────────────────────────────────────────────
 
   /// Release model resources. Call when the app is being disposed.
