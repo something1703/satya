@@ -87,7 +87,7 @@ class MultimodalPipeline {
         verdict = _parseVerdict(rawOutput, contentHash);
 
         if (verdict == null && attempt < _maxRetries) {
-          onStatusUpdate?.call('Retrying analysis (attempt ${attempt + 1})...');
+          onStatusUpdate?.call('Response was not valid JSON. Retrying (attempt ${attempt + 1})...');
         }
       }
 
@@ -188,7 +188,7 @@ class MultimodalPipeline {
           'Please analyze based on available metadata and general audio manipulation patterns.',
     );
 
-    return await GemmaService.instance.generateText(prompt);
+    return await GemmaService.instance.analyzeText(prompt);
   }
 
   // ─── Text analysis ──────────────────────────────────────────────────
@@ -196,7 +196,7 @@ class MultimodalPipeline {
   /// Pass text/claim directly to Gemma 4 for analysis.
   Future<String> _analyzeText(String text, String contentHash) async {
     final prompt = await _buildTextPrompt(text: text, contentHash: contentHash);
-    return await GemmaService.instance.generateText(prompt);
+    return await GemmaService.instance.analyzeText(prompt);
   }
 
   // ─── Image processing helpers ───────────────────────────────────────
