@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_theme.dart';
 import '../../analysis/multimodal_pipeline.dart';
@@ -102,6 +103,9 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
       );
 
       if (!mounted) return;
+
+      // Haptic feedback on verdict ready
+      HapticFeedback.heavyImpact();
 
       // Navigate to verdict screen
       Navigator.of(context).pushReplacement(
@@ -208,23 +212,37 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
 
               // ─── Running locally reassurance ────────────────────
               if (!_hasError)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.lock_outline_rounded,
-                      size: 14,
-                      color: AppTheme.textMuted.withValues(alpha: 0.6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGreen.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTheme.accentGreen.withValues(alpha: 0.15),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Running locally on your device',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppTheme.textMuted.withValues(alpha: 0.6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppTheme.accentGreen,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        '100% on-device · No data leaves your phone',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.accentGreen.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
               // ─── Error actions ──────────────────────────────────

@@ -35,7 +35,7 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
+            // Using debug signing for hackathon demo build
             signingConfig = signingConfigs.getByName("debug")
 
             // ProGuard rules for MediaPipe

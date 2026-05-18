@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_theme.dart';
 import '../../analysis/verdict_schema.dart';
 import 'home_screen.dart';
@@ -7,11 +9,93 @@ import 'home_screen.dart';
 /// The verdict display screen — where the analysis pays off.
 ///
 /// Displays: verdict badge, confidence bar, recommendation,
-/// evidence breakdown, and explanations.
-class VerdictScreen extends StatelessWidget {
+/// evidence breakdown, and explanations. All with animations.
+class VerdictScreen extends StatefulWidget {
   final Verdict verdict;
 
   const VerdictScreen({super.key, required this.verdict});
+
+  @override
+  State<VerdictScreen> createState() => _VerdictScreenState();
+}
+
+class _VerdictScreenState extends State<VerdictScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _badgeController;
+  late AnimationController _confidenceController;
+  late AnimationController _contentController;
+  late Animation<double> _badgeScale;
+  late Animation<double> _badgeFade;
+  late Animation<double> _confidenceValue;
+  late Animation<double> _contentFade;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Badge: scale from 0.5 to 1.0 + fade in
+    _badgeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _badgeScale = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _badgeController, curve: Curves.elasticOut),
+    );
+    _badgeFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _badgeController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
+      ),
+    );
+
+    // Confidence bar: fill from 0 to actual value
+    _confidenceController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _confidenceValue = Tween<double>(
+      begin: 0.0,
+      end: widget.verdict.overallConfidence,
+    ).animate(
+      CurvedAnimation(
+        parent: _confidenceController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    // Content: fade in
+    _contentController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _contentFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _contentController, curve: Curves.easeIn),
+    );
+
+    // Sequence the animations
+    _startAnimations();
+  }
+
+  Future<void> _startAnimations() async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    _badgeController.forward();
+
+    // Haptic on verdict reveal
+    await Future.delayed(const Duration(milliseconds: 400));
+    HapticFeedback.mediumImpact();
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    _confidenceController.forward();
+    _contentController.forward();
+  }
+
+  @override
+  void dispose() {
+    _badgeController.dispose();
+    _confidenceController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,93 +124,187 @@ class VerdictScreen extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  const SizedBox(width: 48), // balance
+                  // On-device badge
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.accentGreen.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.accentGreen,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'On-Device',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.accentGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
 
-              // ─── 1. Verdict badge ─────────────────────────────
-              _VerdictBadge(verdict: verdict.overallVerdict),
+              // ─── 1. Animated verdict badge ─────────────────────
+              AnimatedBuilder(
+                animation: _badgeController,
+                builder: (context, child) {
+                  return Opacity(
+                    opacity: _badgeFade.value,
+                    child: Transform.scale(
+                      scale: _badgeScale.value,
+                      child: _VerdictBadge(
+                          verdict: widget.verdict.overallVerdict),
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 24),
 
-              // ─── 2. Confidence bar ────────────────────────────
-              _ConfidenceBar(confidence: verdict.overallConfidence),
+              // ─── 2. Animated confidence bar ────────────────────
+              AnimatedBuilder(
+                animation: _confidenceController,
+                builder: (context, child) {
+                  return _ConfidenceBar(confidence: _confidenceValue.value);
+                },
+              ),
               const SizedBox(height: 16),
 
               // ─── 3. Recommendation card ───────────────────────
-              _RecommendationCard(recommendation: verdict.recommendation),
+              FadeTransition(
+                opacity: _contentFade,
+                child: _RecommendationCard(
+                    recommendation: widget.verdict.recommendation),
+              ),
               const SizedBox(height: 20),
 
               // ─── 4. Evidence list ─────────────────────────────
-              if (verdict.evidence.isNotEmpty) ...[
-                Text(
-                  'Evidence',
-                  style: GoogleFonts.fraunces(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  ),
+              FadeTransition(
+                opacity: _contentFade,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.verdict.evidence.isNotEmpty) ...[
+                      Text(
+                        'Evidence',
+                        style: GoogleFonts.fraunces(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...widget.verdict.evidence
+                          .map((e) => _EvidenceCard(evidence: e)),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 12),
-                ...verdict.evidence.map((e) => _EvidenceCard(evidence: e)),
-                const SizedBox(height: 16),
-              ],
+              ),
 
               // ─── 5. Explanation ───────────────────────────────
-              _ExplanationSection(
-                shortText: verdict.explanationShort,
-                detailedText: verdict.explanationDetailed,
+              FadeTransition(
+                opacity: _contentFade,
+                child: _ExplanationSection(
+                  shortText: widget.verdict.explanationShort,
+                  detailedText: widget.verdict.explanationDetailed,
+                ),
               ),
               const SizedBox(height: 24),
 
               // ─── 6. Action row ────────────────────────────────
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO Phase 3: report incorrect verdict to Firebase
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Feedback recorded. Thank you!'),
+              FadeTransition(
+                opacity: _contentFade,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          HapticFeedback.lightImpact();
+                          final uri = Uri.parse(
+                            'https://github.com/something1703/satya/issues/new?title=Incorrect+Verdict&body=Content+hash:+${widget.verdict.contentHash}%0AVerdict:+${widget.verdict.overallVerdict.label}%0A%0APlease+describe+what+was+wrong:',
+                          );
+                          try {
+                            await launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('Could not open browser.')),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.flag_outlined, size: 18),
+                        label: const Text('Report'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.textSecondary,
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.12),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.flag_outlined, size: 18),
-                      label: const Text('Report'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.textSecondary,
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.12),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                            builder: (_) => const HomeScreen(),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text('Analyze Another'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryIndigo,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => const HomeScreen(),
+                            ),
+                            (route) => false,
+                          );
+                        },
+                        icon:
+                            const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Analyze Another'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryIndigo,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+
+              // ─── Powered by footer ────────────────────────────
+              Center(
+                child: Text(
+                  'Powered by Gemma 4 · Unsloth · LiteRT',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: AppTheme.textMuted.withValues(alpha: 0.4),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -169,15 +347,27 @@ class _VerdictBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAlarming = verdict == OverallVerdict.likelyManipulated ||
+        verdict == OverallVerdict.likelySynthetic;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
       decoration: BoxDecoration(
         color: _color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: _color.withValues(alpha: 0.25),
-          width: 1.5,
+          color: _color.withValues(alpha: isAlarming ? 0.4 : 0.25),
+          width: isAlarming ? 2.0 : 1.5,
         ),
+        boxShadow: isAlarming
+            ? [
+                BoxShadow(
+                  color: _color.withValues(alpha: 0.15),
+                  blurRadius: 24,
+                  spreadRadius: 0,
+                ),
+              ]
+            : null,
       ),
       child: Column(
         children: [
@@ -345,7 +535,8 @@ class _EvidenceCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppTheme.accentAmber.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -360,13 +551,15 @@ class _EvidenceCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text(
-                evidence.location,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: AppTheme.textMuted,
+              if (evidence.location.isNotEmpty &&
+                  evidence.location != 'N/A')
+                Text(
+                  evidence.location,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppTheme.textMuted,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -416,7 +609,7 @@ class _ExplanationSectionState extends State<_ExplanationSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Explanation',
+            'Why we think this',
             style: GoogleFonts.fraunces(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -440,7 +633,7 @@ class _ExplanationSectionState extends State<_ExplanationSection> {
               child: Row(
                 children: [
                   Text(
-                    _expanded ? 'Show less' : 'Tell me more',
+                    _expanded ? 'Show less' : 'Show detailed reasoning',
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -458,19 +651,31 @@ class _ExplanationSectionState extends State<_ExplanationSection> {
                 ],
               ),
             ),
-            if (_expanded) ...[
-              const SizedBox(height: 10),
-              Divider(color: Colors.white.withValues(alpha: 0.06)),
-              const SizedBox(height: 10),
-              Text(
-                widget.detailedText,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppTheme.textSecondary,
-                  height: 1.6,
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Divider(color: Colors.white.withValues(alpha: 0.06)),
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.detailedText,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: AppTheme.textSecondary,
+                        height: 1.6,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+              crossFadeState: _expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 300),
+            ),
           ],
         ],
       ),

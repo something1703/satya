@@ -254,7 +254,6 @@ class GemmaService {
 
     if (response is FunctionCallResponse) {
       // Native function call — convert args to JSON for the pipeline
-      debugPrint('[GemmaService] Received FunctionCallResponse: ${response.name}');
       return jsonEncode(response.args);
     }
 

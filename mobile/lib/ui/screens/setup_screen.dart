@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../analysis/gemma_service.dart';
 import '../../config/app_config.dart';
 import 'home_screen.dart';
@@ -82,7 +83,7 @@ class _SetupScreenState extends State<SetupScreen> {
                 // App name
                 Text(
                   AppConfig.appName,
-                  style: const TextStyle(
+                  style: GoogleFonts.fraunces(
                     fontSize: 48,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,

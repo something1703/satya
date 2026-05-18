@@ -61,9 +61,7 @@ class _SatyaAppState extends State<SatyaApp> {
     // Listen for shares received while the app is already running
     _shareSubscription = ReceiveSharingIntent.instance
         .getMediaStream()
-        .listen(_handleSharedMedia, onError: (err) {
-      debugPrint('[SATYA] Share intent error: $err');
-    });
+        .listen(_handleSharedMedia, onError: (_) {});
   }
 
   @override
@@ -81,8 +79,6 @@ class _SatyaAppState extends State<SatyaApp> {
     if (navigator == null) return;
 
     final contentType = _detectContentType(file);
-
-    debugPrint('[SATYA] Received shared content: ${file.path} (type: $contentType)');
 
     navigator.push(
       MaterialPageRoute(

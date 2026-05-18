@@ -357,7 +357,7 @@ trainer = SFTTrainer(
         per_device_train_batch_size=1,
         gradient_accumulation_steps=16,
         warmup_ratio=0.05,
-        num_train_epochs=3,
+        num_train_epochs=1,
         learning_rate=2e-4,
         fp16=True,
         logging_steps=25,
@@ -367,7 +367,7 @@ trainer = SFTTrainer(
         output_dir="satya-lora-checkpoints",
         report_to="none",
         dataset_text_field="text",
-        max_seq_length=2048,
+        max_seq_length=1024,
     ),
 )
 

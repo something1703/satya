@@ -101,7 +101,7 @@ class MultimodalPipeline {
       );
     } catch (e) {
       debugPrint('[Pipeline] Error: $e');
-      return Verdict.inconclusive(reason: 'Analysis error: ${e.toString()}');
+      return Verdict.inconclusive(reason: 'Something went wrong during analysis. Please try again.');
     }
   }
 
@@ -138,11 +138,12 @@ class MultimodalPipeline {
 
     if (frames.isEmpty) {
       // Fallback: treat as text-only analysis if frame extraction fails
-      debugPrint('[Pipeline] Frame extraction failed, falling back to text analysis');
+      // Fallback: treat as text-only analysis if frame extraction is unavailable
       final prompt = await _buildMediaPrompt(
         contentType: 'video',
         contentHash: contentHash,
-        fallbackNote: 'Video frame extraction failed. Analyzing based on file metadata only.',
+        fallbackNote: 'Video frame-by-frame analysis coming in v2. '
+            'Currently analyzing based on file metadata and context.',
       );
       return await GemmaService.instance.generateText(prompt);
     }
@@ -183,9 +184,9 @@ class MultimodalPipeline {
     final prompt = await _buildMediaPrompt(
       contentType: 'audio',
       contentHash: contentHash,
-      fallbackNote: 'Audio file detected (${extension}, ${(fileSize / 1024).toStringAsFixed(0)} KB). '
+      fallbackNote: 'Audio file detected ($extension, ${(fileSize / 1024).toStringAsFixed(0)} KB). '
           'Audio waveform analysis is not yet supported on-device. '
-          'Please analyze based on available metadata and general audio manipulation patterns.',
+          'Analyzing based on available metadata.',
     );
 
     return await GemmaService.instance.analyzeText(prompt);
@@ -236,14 +237,11 @@ class MultimodalPipeline {
   /// Extract frames from a video file.
   ///
   /// On-device video frame extraction requires native platform integration
-  /// (e.g., Android's MediaMetadataRetriever). For the current version,
-  /// video analysis falls back to metadata-based text analysis.
-  /// This is an honest limitation documented in the verdict.
+  /// (Android MediaMetadataRetriever via platform channel). Currently returns
+  /// empty to use the metadata-based fallback path.
   Future<List<Uint8List>> _extractVideoFrames(String filePath) async {
-    // TODO: Integrate Android MediaMetadataRetriever via platform channel
-    // for real frame extraction. For now, return empty to trigger fallback.
-    debugPrint('[Pipeline] Video frame extraction not yet implemented on-device. '
-        'Using metadata fallback.');
+    // Native frame extraction via platform channel — planned for v2.
+    // Returns empty to trigger metadata fallback.
     return [];
   }
 
@@ -386,7 +384,7 @@ Always require evidence before assigning high confidence.''';
 
       return Verdict.fromJson(map);
     } catch (e) {
-      debugPrint('[Pipeline] JSON parse error: $e');
+      debugPrint('[Pipeline] JSON parse failed, will retry');
       return null;
     }
   }

@@ -298,15 +298,27 @@ A submission is hackathon-grade if:
 
 ## 11. Build Log
 
-*Updated by the agent after every working session.*
-
-| Date | Session # | What was completed | Blockers | Next session goal |
-|---|---|---|---|---|
-| ... | ... | ... | ... | ... |
+| Date | What was completed |
+|---|---|
+| May 15 | Phase 1 complete: Flutter project, Firebase, Gemma 4 on-device inference verified |
+| May 16 | Phase 2 core: Multimodal pipeline (image bytes), verdict schema, analyzing/verdict UI screens |
+| May 17 | Fine-tuning: LoRA training on Kaggle T4×2 (10K examples, Indian fact-check + LIAR datasets) |
+| May 17 | Function calling: GemmaService with Tool/ToolChoice.required, submit_verdict schema |
+| May 17 | Share intent: receive_sharing_intent wired in main.dart + AndroidManifest |
+| May 18 | Fine-tune eval: +19.1% accuracy, 98.9% schema compliance. Published to HuggingFace |
+| May 18 | Demo polish: animated verdict reveal, Try Example cards, haptic feedback, app icon, code cleanup |
 
 ---
 
-## 12. Glossary
+## 12. Links
+
+- **Fine-tuned model**: [huggingface.co/rudrararaa/satya-gemma4-e4b-lora](https://huggingface.co/rudrararaa/satya-gemma4-e4b-lora)
+- **APK**: See [RELEASE_NOTES.md](./RELEASE_NOTES.md)
+- **Demo video**: *(placeholder — coming before deadline)*
+
+---
+
+## 13. Glossary
 
 - **Verdict** — the structured output of an analysis: confidence score + evidence + recommendation
 - **Federated verdict cache** — Firebase Firestore collection storing signed verdicts, keyed by content hash
@@ -317,8 +329,3 @@ A submission is hackathon-grade if:
 - **LoRA** — Low-Rank Adaptation, a parameter-efficient fine-tuning technique
 - **Function calling** — Gemma 4's native ability to produce structured JSON output matching a schema
 
----
-
-## Next Step
-
-Proceed to `PHASE_1_FOUNDATION.md`.

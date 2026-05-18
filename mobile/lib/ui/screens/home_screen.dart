@@ -1,6 +1,5 @@
-
 import 'package:flutter/material.dart';
-
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../config/app_theme.dart';
@@ -8,7 +7,7 @@ import 'analyzing_screen.dart';
 
 /// The main surface of the app. One screen, one purpose.
 ///
-/// Actions: "Analyze from gallery" and "Paste text or link".
+/// Actions: "Analyze from gallery", "Paste text or link", and "Try Examples".
 /// No tabs, no bottom nav. Serious tool, clean interface.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,7 +16,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   late AnimationController _pulseController;
@@ -64,7 +64,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _analyzeText() {
     final text = _textController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please paste some text or a claim to analyze.',
+            style: GoogleFonts.inter(fontSize: 13),
+          ),
+          backgroundColor: AppTheme.surfaceElevated,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
     _navigateToAnalysis(text: text, contentType: 'text');
   }
 
@@ -73,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     String? text,
     required String contentType,
   }) {
+    HapticFeedback.mediumImpact();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AnalyzingScreen(
@@ -93,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 60),
+              const SizedBox(height: 48),
 
               // ─── Animated shield icon ───────────────────────────
               AnimatedBuilder(
@@ -121,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   );
                 },
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
               // ─── App name ───────────────────────────────────────
               Text(
@@ -134,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 semanticsLabel: 'SATYA — On-Device Truth Detection',
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'On-Device Truth Detection',
                 style: GoogleFonts.inter(
@@ -144,10 +159,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   letterSpacing: 2,
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 36),
 
               // ─── Primary actions ────────────────────────────────
-              // Analyze from gallery (image)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -170,7 +184,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
               const SizedBox(height: 12),
 
-              // Analyze from gallery (video)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -194,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
 
               // ─── Divider ────────────────────────────────────────
               Row(
@@ -221,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // ─── Text input ─────────────────────────────────────
               Container(
@@ -243,7 +256,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         color: AppTheme.textPrimary,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Paste a suspicious message, claim, or URL...',
+                        hintText:
+                            'Paste a suspicious message, claim, or URL...',
                         hintStyle: GoogleFonts.inter(
                           fontSize: 14,
                           color: AppTheme.textMuted,
@@ -275,7 +289,66 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ],
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 32),
+
+              // ─── Try Examples ───────────────────────────────────
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Try an Example',
+                  style: GoogleFonts.fraunces(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Tap a card to see SATYA in action',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              _ExampleCard(
+                icon: Icons.coronavirus_rounded,
+                iconColor: AppTheme.accentRed,
+                title: 'Health Misinformation',
+                subtitle: 'Viral WhatsApp claim about COVID cure',
+                onTap: () => _navigateToAnalysis(
+                  text: 'BREAKING: Exposed government report reveals drinking warm lemon water with turmeric cures COVID-19 in 24 hours. Big pharma has been hiding this from you! Share with everyone before they delete this! 🚨🍋',
+                  contentType: 'text',
+                ),
+              ),
+
+              _ExampleCard(
+                icon: Icons.how_to_vote_rounded,
+                iconColor: AppTheme.accentAmber,
+                title: 'Political Fabrication',
+                subtitle: 'Fake quote attributed to a public figure',
+                onTap: () => _navigateToAnalysis(
+                  text: 'JUST IN: Supreme Court of India has officially declared that all digital payments will be banned from next month. Cash will be the only legal tender. RBI has confirmed this. Forward to all your contacts immediately!',
+                  contentType: 'text',
+                ),
+              ),
+
+              _ExampleCard(
+                icon: Icons.smart_toy_rounded,
+                iconColor: AppTheme.verdictSynthetic,
+                title: 'AI-Generated Content',
+                subtitle: 'Deepfake-style synthetic claim',
+                onTap: () => _navigateToAnalysis(
+                  text: 'NASA has confirmed that a second moon has been captured by Earth\'s gravity. The new moon, named Luna-2, will be visible starting next week. Scientists say this happens once every 10,000 years. Share this historic moment! 🌙',
+                  contentType: 'text',
+                ),
+              ),
+              const SizedBox(height: 28),
 
               // ─── Share hint ─────────────────────────────────────
               Row(
@@ -296,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // ─── Privacy assurance ──────────────────────────────
               Row(
@@ -317,8 +390,115 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+
+              // ─── Powered by footer ──────────────────────────────
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceElevated.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.04),
+                  ),
+                ),
+                child: Text(
+                  'Powered by Gemma 4 · Unsloth · LiteRT',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppTheme.textMuted.withValues(alpha: 0.5),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Example Card ──────────────────────────────────────────────────────
+
+class _ExampleCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ExampleCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: AppTheme.surfaceElevated,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          splashColor: iconColor.withValues(alpha: 0.08),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: AppTheme.textMuted.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
           ),
         ),
       ),
